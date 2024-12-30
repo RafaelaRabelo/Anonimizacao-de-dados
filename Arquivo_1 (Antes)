@@ -1,0 +1,68 @@
+import pandas as pd
+from datetime import datetime, timedelta
+import random
+import os
+from faker import Faker
+
+# Caminho dos arquivos Excel
+input_file_path = r'XXXX\Antes.xlsx'
+output_file_path = r'XXXX\Antes-Arquivo_de_saida.xlsx'
+mapping_file_path = r'XXXX\Antes-Arquivo_de_controle.csv'
+
+# Inicializar o Faker
+fake = Faker()
+
+# Função para gerar um primeiro nome aleatório usando Faker
+def generate_random_name():
+    return fake.first_name()
+
+# Função para alterar a data
+def modify_date(date_str):
+    date_obj = datetime.strptime(date_str, '%d/%m/%Y')
+    new_date = date_obj - timedelta(days=6) + timedelta(days=31)
+    new_date_str = new_date.strftime('%d/%m/%Y')
+    return new_date_str
+
+# Função para codificar nomes
+def encode_name(name, name_map):
+    if name not in name_map:
+        name_map[name] = generate_random_name()
+    return name_map[name]
+
+# Função para alterar o valor
+def modify_value(value_str):
+    value_number = float(value_str.replace('R$', '').replace('.', '').replace(',', '.'))
+    variation = random.uniform(-0.1, 0.1)  
+    new_value_number = value_number * (1 + variation)
+    new_value_str = f'R$ {new_value_number:,.2f}'.replace(',', '.').replace('.', ',', 1)
+    return new_value_str
+
+# Ler o arquivo Excel
+df = pd.read_excel(input_file_path)
+
+# Verificar se o arquivo de mapeamento já existe
+if os.path.exists(mapping_file_path):
+    name_map_df = pd.read_csv(mapping_file_path, encoding='ISO-8859-1', sep=';')
+    name_map = dict(zip(name_map_df['Nome'], name_map_df['Codigo']))
+else:
+    name_map = {}
+
+# Mapear as colunas específicas para valores codificados
+for column in ['Orçamentista', 'Verificador Orçamento', 'Aprovador Orçamento']:
+    if column in df.columns:
+        df[column] = df[column].apply(lambda name: encode_name(name, name_map))
+
+# Modificar as colunas de data e valor, se necessário
+if 'Data' in df.columns:
+    df['Data'] = df['Data'].apply(modify_date)
+if 'Valor' in df.columns:
+    df['Valor'] = df['Valor'].apply(modify_value)
+
+# Salvar o arquivo Excel modificado
+df.to_excel(output_file_path, index=False)
+
+# Atualizar e salvar o mapeamento de nomes para códigos
+name_map_df = pd.DataFrame(list(name_map.items()), columns=['Nome', 'Codigo'])
+name_map_df.to_csv(mapping_file_path, index=False, sep=';', encoding='ISO-8859-1')
+
+print("Dados modificados e salvos com sucesso!")

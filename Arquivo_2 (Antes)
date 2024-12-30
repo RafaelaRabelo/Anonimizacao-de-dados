@@ -1,0 +1,65 @@
+import pandas as pd
+import random
+import os
+from faker import Faker
+
+# Caminho dos arquivos Excel
+input_file_path = r'XXXX\Antes.xlsx'
+output_file_path = r'XXXX\Antes-Arquivo_de_saida.xlsx'
+mapping_file_path = r'XXXX\Antes-Arquivo_de_controle.csv'
+
+# Inicializar o Faker
+fake = Faker()
+
+# Função para gerar dados aleatórios
+def generate_random_data():
+    nome_completo = fake.name()
+    sobrenome = nome_completo.split()[-1]  # Pega o último nome como sobrenome
+    return {
+        'nome': nome_completo,
+        'email': fake.email(),
+        'chave': fake.uuid4(),  # Gera um UUID como chave
+        'matricula': fake.random_int(min=1000, max=9999),  # Gera um número aleatório para matrícula
+        'cargo': random.choice(['Cargo I', 'Cargo II']),  # Escolhe entre Cargo I e Cargo II
+        'nivel': random.choice(['Júnior', 'Pleno', 'Sênior', 'Gerente', 'Supervisor']),  # Gera um nível aleatório
+        'nome_de_guerra': sobrenome  # Nome de guerra é o sobrenome
+    }
+
+# Ler o arquivo Excel
+df = pd.read_excel(input_file_path)
+
+# Lista para armazenar os dados de controle
+control_data = []
+
+# Anonimizar os dados nas colunas especificadas
+for index, row in df.iterrows():
+    random_data = generate_random_data()
+    control_data.append({
+        'NIVEL': row['NIVEL'],  # Nível original
+        'NOME ORIGINAL': row['NOME'],
+        'E-MAIL ORIGINAL': row['E-MAIL'],
+        'NOME ANONIMIZADO': random_data['nome'],
+        'E-MAIL ANONIMIZADO': random_data['email'],
+        'NOVO NIVEL': random_data['nivel'],  # Novo nível aleatório
+        'CHAVE': random_data['chave'],  # Chave gerada
+        'MATRICULA': random_data['matricula'],  # Matrícula gerada
+        'CARGO': random_data['cargo'],  # Cargo gerado (Cargo I ou II)
+        'NOME DE GUERRA': random_data['nome_de_guerra']  # Nome de guerra baseado no sobrenome
+    })
+    df.at[index, 'NOME'] = random_data['nome']
+    df.at[index, 'E-MAIL'] = random_data['email']
+    df.at[index, 'CHAVE'] = random_data['chave']
+    df.at[index, 'MATRICULA'] = random_data['matricula']
+    df.at[index, 'CARGO'] = random_data['cargo']
+    df.at[index, 'NIVEL'] = random_data['nivel']
+    df.at[index, 'NOME DE GUERRA'] = random_data['nome_de_guerra']  # Anonimizar o nome de guerra
+
+# Salvar o arquivo Excel modificado
+df.to_excel(output_file_path, index=False)
+
+# Criar um DataFrame para os dados de controle e salvar
+control_df = pd.DataFrame(control_data)
+control_df.to_csv(mapping_file_path, index=False, sep=';', encoding='ISO-8859-1')
+
+print("Dados de colaboradores modificados e salvos com sucesso!")
+print("Dados de controle salvos com sucesso!")
